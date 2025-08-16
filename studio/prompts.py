@@ -33,7 +33,7 @@ class VisualizerPrompt:
             - Focus on a specific aspect of the data (e.g., distribution, correlation, time trend, category comparison, anomaly detection).
             - Include **all** of the following keys: `topic`, `chart_type`, `variables`, `explanation`, `parameters`.
             - Use only existing column names from the dataset in `variables`.
-            - `chart_type` should be a standard, executable visualization type (e.g., "bar", "line", "scatter", "histogram", "boxplot", "heatmap").
+ .          - `chart_type` should be a standard, executable visualization type (e.g., "bar", "line", "scatter", "histogram", "boxplot", "heatmap").
             - `parameters` may include chart-specific options such as sorting, grouping, aggregation method, bins, color scheme, etc.
         3. Avoid vague or generic suggestions. Each explanation should state **why** the chart is relevant and what insights it may reveal.
         4. Try to use **different chart types** and cover various analytical angles across the directions.
@@ -89,7 +89,8 @@ class VisualizerPrompt:
                 `plt.savefig("{output_path}", dpi=300)`  
                 and then call `plt.close()`.
         2. The code must be **directly executable** without modification.
-        3. Do NOT create or print any other output besides the plot file.
+        3. Pay attention to the data types, guarantee the the attributes are used correctly (e.g., categorical vs numerical).
+        4. Do NOT create or print any other output besides the plot file.
 
         ## **Output format:**
         ```python
@@ -98,7 +99,7 @@ class VisualizerPrompt:
         ```
         
         ## **Attention:**
-        1. Do not use any other libraries beyond pandas, matplotlib, seaborn and networkx.
+        1. Do not use any other libraries beyond pandas, matplotlib, seaborn and networkx. IT IS PROHIBITED to use other third-party libraries.
         2. Return ONLY valid Python code inside the code block, with no explanations or comments.
         2. Ensure the code is syntactically correct and ready to run.
     """
@@ -118,7 +119,7 @@ class VisualizerPrompt:
         - Keep the code as a single, directly executable script (no notebooks magics, no functions required).
 
         ## **Fixing Guidelines:**
-        - Resolve import, name, attribute, parameter, dtype, and seaborn/matplotlib version‑compat errors (e.g., deprecated args) by using supported alternatives.
+        - Resolve import, name, attribute, parameter, dtype, and seaborn/matplotlib version-compat errors (e.g., deprecated args) by using supported alternatives.
         - If the error is due to a missing column or invalid variable, add a clear `ValueError` with a helpful message rather than guessing column names.
         - Ensure the figure is saved exactly to the same output path present in the original code.
         - Add minimal robustness only when needed to fix the error (e.g., `plt.tight_layout()`), and close figures with `plt.close()` after saving.
@@ -137,6 +138,24 @@ class VisualizerPrompt:
         ## **Attention:**
         1. Return ONLY valid Python code inside the code block, with no explanations or comments.
         2. Ensure the code is syntactically correct and ready to run.
+    """
+    CHART_QUALITY_CHECKER = """
+    You are an automated reviewer of data visualizations. Given a chart image, determine whether the image is legible and meaningful for analysis. Your judgment must be based primarily on what is visible in the image.
+    
+    ## You will be given:
+    - A chart image (as a base64-encoded PNG)
+
+    ## **What to evaluate:**
+    1. **Readability & Clarity**: Axes/titles/legends present and readable; tick labels not overlapping; reasonable tick density; text not clipped; adequate contrast; figure size/aspect sensible; tight_layout-quality.
+    2. **Meaningfulness**: Non-empty, non-constant data; visible variation; ordering/sorting makes sense; annotations/units (if relevant) clear; not a trivial or degenerate view (e.g., 100% single category).
+
+    ## **Output format (valid JSON in a single fenced code block; no extra text)**:
+    ```json
+    {
+        "is_legible": True|False, (boolean indicating if the chart is legible)
+        "evidences": ["evidences of why it is legible or not, e.g., 'x-axis labels overlapping', 'y-axis missing', 'data appears constant', etc.],
+    }
+    ```
     """
 class InsightPrompt:
     GEN_INSIGHT = """
@@ -242,5 +261,9 @@ class InsightPrompt:
         - Use ONLY integers for scoring fields; no decimals.
         - If predictability is not applicable, set checks.predictability.applicable=false and set available_points=90.
         - Every field in the output JSON must be present; Return ONLY the JSON object inside the ```json fenced block with no additional content.
+    """
+
+class PresenterPrompt:
+    SUMMARIZER = """
     """
 

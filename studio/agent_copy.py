@@ -4,7 +4,7 @@ import os
 import pandas as pd
 import json
 
-from typing import Any, Dict
+from typing import Any, Dict, List
 from helpers import get_llm
 from tabulate import tabulate
 from report_html import generate_html_report
@@ -26,6 +26,7 @@ class Agent:
         self.code_rectifier_prompt = VisualizerPrompt.CODE_RECTIFIER
         self.generate_insight_prompt = InsightPrompt.GEN_INSIGHT
         self.verify_insight_prompt = InsightPrompt.EVALUATE_INSIGHT
+        self.check_image_prompt = VisualizerPrompt.CHART_QUALITY_CHECKER
     def initialize(self):
         self.data_path = './dataset.csv'
         self.dataset = pd.read_csv(self.data_path)
@@ -140,6 +141,42 @@ class Agent:
         print(f"Generated code:\n{code}")
 
         return code
+    def check_image_quality(self, image_lst: List[str]) -> List[str]:
+        verified_images = []
+        for image_path in image_lst:
+            base64_image = encode_image(image_path)
+            messages = [
+                SystemMessage(content=self.check_image_prompt),
+                HumanMessage(content=[
+                    {
+                        "type": "text",
+                        "text": "Please check the quality of the following chart image."
+                    },
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/png;base64,{base64_image}",
+                            "detail": "high"
+                        }
+                    }
+                ])
+            ]
+            print(f"Checking quality for image: {image_path}")
+            response = self.llm.invoke(messages).content.strip()
+            quality = extract_json_from_code_block(response)
+
+            try:
+                data = json.loads(quality)
+                is_legible = data["is_legible"]
+            except:
+                is_legible = False
+            
+            if is_legible:
+                verified_images.append(image_path)
+            
+            print(f"Image {image_path} legibility: {is_legible}")
+        
+        return verified_images
 
     def generate_insight(self, image_path: str) -> Dict:
         base64_image = encode_image(image_path)
@@ -240,9 +277,13 @@ class Agent:
             self.execute_code(plot_code)
             img_files.append(f"plot_{i+1}.png")
         
-        insight_dict = {img_file: [] for img_file in img_files}
+        verified_img_files = self.check_image_quality(img_files)
 
-        for img_file in img_files:
+        print(f"Here is the verified images: {verified_img_files}")
+        
+        insight_dict = {img_file: [] for img_file in verified_img_files}
+
+        for img_file in verified_img_files:
             image_path = img_file
             data = self.generate_insight(image_path)
 
