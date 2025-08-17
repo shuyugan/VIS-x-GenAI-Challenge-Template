@@ -1,18 +1,17 @@
-
-import csv
-import os
 import pandas as pd
 import json
 
 from typing import Any, Dict, List
 from helpers import get_llm
-from tabulate import tabulate
 from report_html import generate_html_report
 from report_pdf import generate_pdf_report
 from langchain_core.messages import HumanMessage, SystemMessage
+import tabulate
 
 from prompts import CollectorPrompt, VisualizerPrompt, InsightPrompt
 from utils import extract_json_from_code_block, extract_code_from_code_block, encode_image
+
+from presenter import Presenter
 class Agent:
     def __init__(self):
         self.llm = get_llm(temperature=0, max_tokens=4096)
@@ -27,6 +26,7 @@ class Agent:
         self.generate_insight_prompt = InsightPrompt.GEN_INSIGHT
         self.verify_insight_prompt = InsightPrompt.EVALUATE_INSIGHT
         self.check_image_prompt = VisualizerPrompt.CHART_QUALITY_CHECKER
+
     def initialize(self):
         self.data_path = './dataset.csv'
         self.dataset = pd.read_csv(self.data_path)
@@ -69,7 +69,7 @@ class Agent:
 
         return metadata
     
-    def direction_advisor(self) -> str:
+    def direction_advisor(self) -> List[Dict[str, Any]]:
         prompt = self.direction_advisor_prompt.replace("{num_directions}", str(self.num_directions))
         metadata_info = json.dumps(self.metadata_report, indent=2)
         messages = [
@@ -260,10 +260,8 @@ class Agent:
                 except Exception as e:
                     raise ValueError(f"in evaluate_insight: Error parsing JSON response for image {img_path} and insight {insight}: {str(e)}")
 
-        return final_insight_dict
-    
-    def present_report(self, final_insight_dict: Dict):
-        ...
+        return final_insight_dict        
+         
     def process(self):
         print("Beginning processing...")
         self.metadata_report = self.generate_metadatareport()
@@ -297,8 +295,16 @@ class Agent:
         with open("insights.json", "w", encoding="utf-8") as f:
             json.dump(insight_dict, f, ensure_ascii=False, indent=4)
 
-        
+        print(f"Now we begin to generate the report")
+        presenter = Presenter(
+            self.llm,
+            self.metadata_report,
+            directions,
+            verified_img_files,
+            final_insight_dict
+        )
 
+        presenter.process()
         
 
 

@@ -39,8 +39,8 @@ class VisualizerPrompt:
         4. Try to use **different chart types** and cover various analytical angles across the directions.
         
 
-        ## **Output format(all keys mandatory, valid JSON only:**
-        、、、
+        ## **Output format(all keys mandatory, valid JSON only):**
+        ```json
         [
             {   "topic": "...",
                 "chart_type": "...",
@@ -62,13 +62,13 @@ class VisualizerPrompt:
             }
         ],
         ...
-        、、、
+        ```
         
         ## **Attention:**
         - Output **only** the JSON array inside a pure Markdown code block (```json ... ```), without any extra text, commentary, or formatting.
         - Ensure the JSON is valid and directly parsable.
     """
-    CODE_GENERATOR = """"
+    CODE_GENERATOR = """
         You are a Python data visualization code generator. Your task is to generate **production-ready, executable** Python code based on the following inputs:
             - Randomly sampled DataFrame of the dataset (for potential reference only; may be used to understand value type, ranges, categories, but do not assume it fully represents the entire dataset).
             - Data Type Information
@@ -176,7 +176,7 @@ class InsightPrompt:
 
         ## **Output format (valid JSON in a single fenced code block; no extra text)**
         - Insight description should be a paragraph, not a list.
-        - Always return an object with key `"insights"` mapping to a list of 5-7 items.
+        - Always return an object with key `"insights"` mapping to a list of 6-8 items.
         - For **backward compatibility**, `description` is **mandatory**. All other fields are required for quality but your client may ignore them.
         ```
         {
@@ -229,7 +229,7 @@ class InsightPrompt:
 
 
         ## **Grading Criteria:**
-        Based on the above characteristics, assign an integer grade to each insight:
+        Based on the above characteristics, assign an **integer** grade to each insight:
         - Observation & quantification: 0-20
         - Reason quality & Depth: 0-20
         - So-what quality: 0-20
@@ -245,13 +245,13 @@ class InsightPrompt:
         {
             "insight": "...",
             "scores": {
-                "Observation & quantification": 0.0-0.3,
-                "Reason quality & Depth": 0.0-0.2,
-                "So-what quality": 0.0-0.2,
-                "Evidence-based": 0.0-0.2,
-                "Novelty": 0.0-0.1
+                "Observation & quantification": 0-20,
+                "Reason quality & Depth": 0-20,
+                "So-what quality": 0-20,
+                "Evidence-based": 0-20,
+                "Novelty": 0-20
             },
-            "total_score": 0.0-1.0,
+            "total_score": 0-100,
             "evidence": ["...","..."],
             "conclusion": "..."
         }
@@ -264,6 +264,153 @@ class InsightPrompt:
     """
 
 class PresenterPrompt:
-    SUMMARIZER = """
+    ORDER_GENERATOR = """
+        You are a professional data presenter. Determine an effective presentation order for the report topics and provide short transitions between consecutive topics.
+
+        ## You will be provided with:
+        - A brief introduction to the dataset
+        - A list of research topics will be covered in the report
+
+        ## **Goal**
+        Return an ordered list of all topics (no additions/removals) and a concise transition sentence from each topic to the next.
+
+
+        ## **Ranking criteria (apply in this order when possible)**
+        1) Coherence: place topics with shared variables/segments/time windows or closely related patterns adjacent.
+        2) Narrative arc: start with general/overview themes, then drill down to specific segments/interactions, and defer niche/complex views toward the end.
+        3) Temporal logic: if time fields exist, respect chronology (earlier → later).
+        4) Dependency: show distributions/overview before comparisons/correlations/regressions that depend on the same fields.
+        5) Tie-breakers: readability (simpler charts earlier), balanced coverage (avoid clustering many near-identical topics).
+
+        ## **Transition requirements**
+        - For each adjacent pair, write 1 short sentence (≈12-25 words) that naturally bridges them.
+        - Use a clear cue (“Building on…”, “In contrast…”, “Next, we examine…”, “Zooming in on…”).
+        - Mention the exact **next** topic title.
+        - No new facts, numbers, or claims beyond what could be inferred from titles/topic_profiles.
+        
+        ## Output format (valid JSON in a single fenced block; no extra text)
+        ```json
+        {
+        "order": ["<topic A>", "<topic B>", "<topic C>"],
+        "transitions": [
+            {"from": "<topic A>", "to": "<topic B>", "text": "Building on A, we turn to **<topic B>** to examine …"},
+            {"from": "<topic B>", "to": "<topic C>", "text": "In contrast, **<topic C>** explores …"}
+        ]
+        }
+        ```
+        ## **ATTENTION**:
+        - Return the "order" as an array of EXACT strings from the provided list. Do not paraphrase or trim. Use the exact items including colons and explanations.
+        - Produce valid JSON (double quotes, no trailing commas). Output ONLY the JSON block.
+    """
+    INTRODUCTION_GENERATOR = """
+        You are a professional data presenter. Your task is to generate a concise, engaging, and informative introduction for a data report based on the provided components.
+
+        ## You will be provided with:
+        - A brief introduction to the dataset
+        - A list of research topics will be orderedly covered in the report.(List is ordered)
+
+        ## **Goal:**
+        Synthesize the dataset_intro and the upcoming topics into a coherent, natural-sounding introduction that sets expectations for the reader and previews what will follow.
+
+        ## **Requirements:**
+        1. Mention the topics **naturally within the paragraph** (no bullet list). Use the exact topic strings provided; you may highlight them with markdown (**bold** or *italic*).
+        2. Pay attention to the order of topics; present them in the same order as provided.
+        3. Professional yet accessible tone; present tense; active voice.
+        4. Be factual and grounded in the inputs; **do not add numbers, units, or claims** that are not present in dataset_intro.
+
+        ## **Output format (in markdown)**:
+        Return exactly **one** paragraph wrapped in tags:
+        <paragraph>
+        Your markdown paragraph here, with optional **bold**/*italic* for topic names.
+        </paragraph>
+
+        ## **Attention:**
+        - Output only the paragraph block—no headings, no lists, no extra text before/after.
+        - Do not introduce external knowledge or speculate beyond the inputs.
+    """
+    NARRATIVE_COMPOSER = """
+        You are a skilled data storyteller. Weave the chart and its corresponding insights into ONE cohesive, fluent paragraph for a data report.
+
+        ## You will be provided with:
+        - topic: the topic title for this section (You can rephrase it if you want)
+        - chart: Correspoinding chart image for this topic.
+        - insights: a list of insights generated from the chart
+
+        ## **Goal:**
+        Produce a concise, engaging, and informative paragraph that synthesizes the insights into a clear narrative.
+
+        ## **Requirements:**
+        1. Start with a brief sentence introducing the topic and chart (e.g., "The chart above illustrates...").
+        2. Synthesize the insights into a coherent narrative paragraph, connecting them logically.
+
+        ## **Output format (in markdown)**:
+        Return exactly **one** paragraph wrapped in tags:
+        <paragraph>
+        Your markdown paragraph here(You may bold the topic name if you want).
+        </paragraph>
+
+        ## **Attention:**
+        Output only the paragraph block—no headings, no lists, no extra text before/after.
+"""
+
+    TRANSITION_GENERATOR = """
+        You are a professional data presenter. Generate a concise, natural transition that connects the current topic section to the next topic.
+
+        ## You will be provided with:
+        - current topic: the current topic name
+        - current_section_md: the current topic's section content (markdown, already written)
+        - next_topic: the next topic to transition to
+
+        ## **Goal:**
+        Craft a transition content that naturally leads the reader from the current section to the next. The transition should be naturally fused into the current section's content.
+
+        ## **Requirements:**
+        - Present tense, “we” voice, professional and readable.
+        - Mention BOTH the current theme (implicitly via a bridging cue) and the exact next topic title.
+        - Use a clear bridge cue (e.g., “Building on…”, “In contrast…”, “Next, we examine…”).
+
+        ## **Output format (in markdown)**:
+        Return exactly **one** paragraph wrapped in tags:
+        <paragraph>
+        Your markdown transition goes here.
+        </paragraph>
+
+        ## **Attention:**
+        Output only the paragraph block—no headings, no lists, no extra text before/after.
+
+        ```
+    """
+    CONCLUSION_GENERATOR = """
+        You are the Conclusion Writer for a data-viz report. Using only the provided materials, produce a concise synthesis paragraph and, if appropriate, a short list of high-level recommendations.
+
+        ## Inputs
+        - dataset_intro: A brief introduction to the dataset at the beginning of the report
+        - topics_order: an ordered list of topic titles (exact strings) 
+        - topic_narratives_md: a list of markdown paragraphs (one per topic), each already synthesizing Top-K insights for that topic(body part of report)
+
+        ## **Goal**
+        Write a report-level conclusion that:
+        1. provides concise summaries for each topic and its corresponding narrative
+        2. distills the most important patterns across topics,
+        3. optionally highlights defensible cross-topic linkages (shared variables, segments, time windows, or recurring structures like trend/shift/segmentation/interaction/long-tail),
+        4. optionally proposes a few high-level **recommendations** (only when meaningful).
+
+        ## **Requirements**
+        - Ground every statement **only** in the provided topic narratives and titles; do **not** invent new facts or numbers.
+        - Prefer synthesis over enumeration: do not restate each topic; extract 2-3 unifying themes.
+        - Use hedged language for uncertain parts (“likely”, “appears”, “suggests”).
+        - Avoid causal certainty unless explicitly supported by the narratives; prefer associative wording.
+
+        ## **Output format (markdown; in one paragraph)**
+        <paragraph>
+        ...one concise synthesis paragraph here (no lists, no new numbers)...
+        </paragraph>
+
+        ## **Attention:**
+        Output only the paragraph block—no headings, no lists, no extra text before/after.
+
+
+    """
+    JUDGER = """
     """
 
