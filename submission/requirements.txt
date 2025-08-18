@@ -1,1 +1,37 @@
-# Please copy your requirements.txt file from studio/ to submission/ folder. 
+# LangChain & LangGraph
+langchain-core
+langchain-community
+langchain-openai
+langgraph
+langgraph-sdk
+langgraph-checkpoint-sqlite
+langgraph-cli[inmem]
+langsmith
+python-dotenv==1.1.1
+
+# Data & plotting
+pandas
+numpy
+matplotlib
+seaborn
+networkx
+tabulate
+scipy
+wordcloud
+
+# PDF & rendering
+reportlab
+Pillow
+pygments
+
+# Misc / tooling
+notebook
+tavily-python
+trustcall
+
+# OpenAI SDK（显式声明更稳）
+openai
+
+# 可选：若以后读 parquet，解除注释一项
+# pyarrow
+# fastparquet
