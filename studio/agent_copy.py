@@ -16,7 +16,7 @@ class Agent:
     def __init__(self):
         self.llm = get_llm(temperature=0, max_tokens=4096)
         self.sample_size = 10
-        self.num_directions = 10
+        self.num_directions = 8
         self.metadata_report = None
 
         self.gen_explanation_prompt = CollectorPrompt.GEN_EXPLANATION_SYS_PROMPT
@@ -296,6 +296,7 @@ class Agent:
             json.dump(insight_dict, f, ensure_ascii=False, indent=4)
 
         print(f"Now we begin to generate the report")
+        import pdb; pdb.set_trace()
         presenter = Presenter(
             self.llm,
             self.metadata_report,

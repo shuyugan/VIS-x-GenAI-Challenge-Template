@@ -1,14 +1,22 @@
 import pandas as pd
 import matplotlib.pyplot as plt
+import seaborn as sns
 
 df = pd.read_csv("./dataset.csv")
 
-internal_references = df['InternalReferences'].dropna().str.split(';')
-edges = [(doi, ref) for doi, refs in zip(df['DOI'], internal_references) for ref in refs]
+sns.set_theme(style="whitegrid")
+plt.figure(figsize=(8, 6))
 
-plt.figure(figsize=(12, 10))
-plt.title('Internal References Network')
-plt.axis('off')
+awarded_papers = df[df['Award'].notnull()]
+awarded_papers_count = awarded_papers.groupby('Year').size()
+
+plt.plot(awarded_papers_count.index, awarded_papers_count.values, color='red')
+
+plt.title('Number of Awarded Papers Over Time')
+plt.xlabel('Year')
+plt.ylabel('Number of Awarded Papers')
+plt.xticks(rotation=45)
+
 plt.tight_layout()
-plt.savefig("plot_10.png", dpi=300)
+plt.savefig("plot_8.png", dpi=300)
 plt.close()

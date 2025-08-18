@@ -29,6 +29,7 @@ class Presenter:
     
     def initialize(self):
         self.topic_lst = []
+        print(f"Verified images: {str(self.verified_images_files)}")
         for image_name in self.verified_images_files:
             idx = int(image_name.split('_')[-1].split('.')[0]) - 1
             topic = self.visualize_directions[idx]['topic'] + ': ' + self.visualize_directions[idx]['explanation']
@@ -51,9 +52,11 @@ class Presenter:
     
     def generate_introduction(self, ordered_lst: List):
         print('Generating introduction...')
+        topics_block = "\n".join(self.topic_lst)
+        content = f"Here is the brief introduction of the dataset: {self.introduction}\n\n, And here is the list of topics to be covered in the report (one per line):\n{topics_block}"
         messages = [
-            SystemMessage(content = self.gen_introduction_prompt),
-            HumanMessage(content= f"Here is the brief introduction of the dataset{self.introduction}\n\nAnd here is the ordered list of topics to be covered in the report:\n\n{str(ordered_lst)}"),
+            SystemMessage(content=self.order_generator_prompt),
+            HumanMessage(content= content)
         ]
         response = self.llm.invoke(messages).content.strip()
         m = re.search(r"<paragraph>\s*(.*?)\s*</paragraph>", response, flags=re.DOTALL | re.IGNORECASE)
@@ -92,11 +95,11 @@ class Presenter:
         
         return narrative
 
-    def generate_transition(self, curr_topic, curr_narrative, next_topic):
+    def generate_transition(self, curr_topic, curr_narrative, next_topic, recent_transitions):
         print("Generate transition...")
         messages = [
             SystemMessage(content = self.transition_generator_prompt),
-            HumanMessage(content= f"Here is the topic of current section:\n\n{curr_topic}\n\nAnd here is the narrative of current section:\n\n{curr_narrative}\n\nAnd here is the topic of next section:\n\n{next_topic}\n\n")
+            HumanMessage(content= f"Here is the topic of current section:\n\n{curr_topic}\n\nAnd here is the narrative of current section:\n\n{curr_narrative}\n\nAnd here is the topic of next section:\n\n{next_topic}\n\nHere is the list of two recent transtitions(Pay attention to the cues used to avoid repitition): \n\n{recent_transitions}\n\n"),
         ]
 
         response = self.llm.invoke(messages).content.strip()
@@ -148,12 +151,11 @@ class Presenter:
         lines.append(introduction.strip())
         lines.append("")
 
-
         for topic, narrative, img_path in topics_narratives:
-            lines.append(f"## {topic}")
-
             alt = topic.split(':')[0].strip()
-            lines.append(f"![{alt}]({img_path})")
+            lines.append(f"## {fig_idx}. {alt}")
+          
+            lines.append(f"![Figure {fig_idx}: {alt}]({img_path})")
             # lines.append(f"Figure {fig_idx}: {alt}")
 
             fig_idx += 1
@@ -183,6 +185,7 @@ class Presenter:
         norm = lambda s: " ".join(s.split()).strip().lower()
         norm_topics = [norm(x) for x in self.topic_lst]
 
+        recent_transitions = []
         for i in range(len(ordered_lst)):
             print(f"Narrative the {i+1}-th topic: {ordered_lst[i]}")
             topic = ordered_lst[i]
@@ -193,7 +196,8 @@ class Presenter:
             insight_lst = self.rank_insight(curr_image_path)
             narrative = self.narrative_compose(topic, curr_image_path, insight_lst)
             if i != len(ordered_lst) - 1:
-                transition = self.generate_transition(topic, narrative, ordered_lst[i+1])
+                transition = self.generate_transition(topic, narrative, ordered_lst[i+1], recent_transitions[-2:])
+                recent_transitions.append(transition)
                 narrative = narrative + '\n' + transition
             print(f"Here is the narrative: {narrative}")
 

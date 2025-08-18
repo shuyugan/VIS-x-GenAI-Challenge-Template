@@ -29,14 +29,15 @@ class VisualizerPrompt:
         
         ## **Requirement:**
         1. Generate {num_directions} **concise, diverse and actionable** directions for visualizing the dataset
-        2. Each direction must:
+        2. The directions should not overlap in their focus, each direciton should focus on a different aspect of the data.
+        3. Each direction must:
             - Focus on a specific aspect of the data (e.g., distribution, correlation, time trend, category comparison, anomaly detection).
             - Include **all** of the following keys: `topic`, `chart_type`, `variables`, `explanation`, `parameters`.
             - Use only existing column names from the dataset in `variables`.
  .          - `chart_type` should be a standard, executable visualization type (e.g., "bar", "line", "scatter", "histogram", "boxplot", "heatmap").
             - `parameters` may include chart-specific options such as sorting, grouping, aggregation method, bins, color scheme, etc.
-        3. Avoid vague or generic suggestions. Each explanation should state **why** the chart is relevant and what insights it may reveal.
-        4. Try to use **different chart types** and cover various analytical angles across the directions.
+        4. Avoid vague or generic suggestions. Each explanation should state **why** the chart is relevant and what insights it may reveal.
+        5. Try to use **different chart types** and cover various analytical angles across the directions.
         
 
         ## **Output format(all keys mandatory, valid JSON only):**
@@ -76,7 +77,7 @@ class VisualizerPrompt:
 
         ## **Requirements:**
         1. The code must:
-            - Use ONLY: `import pandas as pd`, `import matplotlib.pyplot as plt`, `import seaborn as sns`, `import networkx as nx` 
+            - Use ONLY: `import pandas as pd`, `import matplotlib.pyplot as plt`, `import seaborn as sns`, `import networkx as nx`, `from wordcloud import WordCloud` 
             - Load the dataset from the given path (CSV format) using:
                 `df = pd.read_csv("{data_path}")`
             - Implement the visualization as specified in the given direction.
@@ -99,7 +100,7 @@ class VisualizerPrompt:
         ```
         
         ## **Attention:**
-        1. Do not use any other libraries beyond pandas, matplotlib, seaborn and networkx. IT IS PROHIBITED to use other third-party libraries.
+        1. Do not use any other libraries beyond pandas, matplotlib, seaborn, networkx and wordcloud. IT IS PROHIBITED to use other third-party libraries.
         2. Return ONLY valid Python code inside the code block, with no explanations or comments.
         2. Ensure the code is syntactically correct and ready to run.
     """
@@ -160,7 +161,7 @@ class VisualizerPrompt:
 class InsightPrompt:
     GEN_INSIGHT = """
         You are an expert data analyst with strong visual interpretation skills.
-        I will provide you with a single chart, please generate 6-8 **high-quality** insights grounded strictly in what is visible in the chart.
+        I will provide you with a single chart, please generate 5-7 **high-quality** insights grounded strictly in what is visible in the chart.
 
         ## **What to do:**
         - Prioritize non-obvious, decision-useful findings: trends/turning points, segmentation gaps, interactions, anomalies, long-tail effects.
@@ -176,7 +177,7 @@ class InsightPrompt:
 
         ## **Output format (valid JSON in a single fenced code block; no extra text)**
         - Insight description should be a paragraph, not a list.
-        - Always return an object with key `"insights"` mapping to a list of 6-8 items.
+        - Always return an object with key `"insights"` mapping to a list of 5-7 items.
         - For **backward compatibility**, `description` is **mandatory**. All other fields are required for quality but your client may ignore them.
         ```
         {
@@ -303,20 +304,26 @@ class PresenterPrompt:
         - Produce valid JSON (double quotes, no trailing commas). Output ONLY the JSON block.
     """
     INTRODUCTION_GENERATOR = """
-        You are a professional data presenter. Your task is to generate a concise, engaging, and informative introduction for a data report based on the provided components.
+        You are a professional data presenter. Write a concise, engaging, and **preview-style** introduction for a data-viz report.
 
         ## You will be provided with:
-        - A brief introduction to the dataset
-        - A list of research topics will be orderedly covered in the report.(List is ordered)
+        - A brief factual introduction to the dataset
+        - topics_ordered: an ordered list of topic titles (EXACT strings) to be covered in the report
 
         ## **Goal:**
-        Synthesize the dataset_intro and the upcoming topics into a coherent, natural-sounding introduction that sets expectations for the reader and previews what will follow.
+        Synthesize the dataset_intro and the upcoming topics into a coherent, natural-sounding introduction that sets expectations for the reader and previews what will follow, without listing topics one-by-one.
 
         ## **Requirements:**
-        1. Mention the topics **naturally within the paragraph** (no bullet list). Use the exact topic strings provided; you may highlight them with markdown (**bold** or *italic*).
-        2. Pay attention to the order of topics; present them in the same order as provided.
-        3. Professional yet accessible tone; present tense; active voice.
+        1. Hook first: First, introduce the basic attriuibutes the dataset(What dataset we are concentrating on). Then, open with a one-sentence scene-setter that frames the dataset and why it matters. 
+        2. Preview next: hint at the analytical arc by grouping the upcoming topics into 2-3 themes (trends/segments/relationships/anomalies), **not** a list.
+        3.Use natural connectors (“We begin with…”, “Then we contrast…”, “Finally, we probe…”) instead of enumerations (“first/second/third”).
+        4. Pay attention to the order of topics; present them in the same order as provided.
+        5. Professional, accessible and previewing tone; present tense; active voice;
         4. Be factual and grounded in the inputs; **do not add numbers, units, or claims** that are not present in dataset_intro.
+
+        ## **Style guardrails**
+        - No bullet points, no “This report will…” boilerplate, no laundry-list of titles.
+        - Prefer compact, vivid phrasing and hedged language where appropriate (“suggests”, “appears”).
 
         ## **Output format (in markdown)**:
         Return exactly **one** paragraph wrapped in tags:
@@ -360,14 +367,20 @@ class PresenterPrompt:
         - current topic: the current topic name
         - current_section_md: the current topic's section content (markdown, already written)
         - next_topic: the next topic to transition to
+        - recent_transitions: a short list of the last 2 transitions (to avoid repetition of bridge cues)
+
 
         ## **Goal:**
-        Craft a transition content that naturally leads the reader from the current section to the next. The transition should be naturally fused into the current section's content.
+        - Craft a transition content that naturally leads the reader from the current section to the next. The transition should be naturally fused into the current section's content. The bridge should be smooth, context-aware that feels authored (not templated)
+        - The transition should also includes the **reason for the transition**—the concrete linkage between topics (e.g., shared variable/segment/time window, contrast, unresolved pattern, methodological next step).
 
         ## **Requirements:**
         - Present tense, “we” voice, professional and readable.
-        - Mention BOTH the current theme (implicitly via a bridging cue) and the exact next topic title.
-        - Use a clear bridge cue (e.g., “Building on…”, “In contrast…”, “Next, we examine…”).
+        - Use **one** varied bridge cue (pick from: “Building on…”, “In contrast…”, “Zooming in on…”, “Stepping back…”, “As a complement…”, “To test this pattern…”, “Extending this view…”, “Turning to distribution…”, “From overview to detail…”).
+        - If recent_bridge_cues is provided, **do not** reuse any cue listed there.
+        - **State the linkage explicitly** with a connective clause (e.g., “because/since/so that/therefore/to compare/to validate”), naming the **specific link** (shared field, segment, timeframe, anomaly, or hypothesis from current_section_md).
+        - Mention BOTH the current theme (implicitly via a bridging cue) and the exact next_topic.
+        - Avoid boilerplate like “we now turn to”, “this section will”, “in the next section”.
 
         ## **Output format (in markdown)**:
         Return exactly **one** paragraph wrapped in tags:
@@ -402,6 +415,7 @@ class PresenterPrompt:
         - Avoid causal certainty unless explicitly supported by the narratives; prefer associative wording.
 
         ## **Output format (markdown; in one paragraph)**
+        Return exactly **one** paragraph wrapped in tags:
         <paragraph>
         ...one concise synthesis paragraph here (no lists, no new numbers)...
         </paragraph>
